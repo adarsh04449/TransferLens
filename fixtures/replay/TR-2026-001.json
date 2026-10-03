@@ -1,0 +1,76 @@
+{
+  "documents": [
+    {
+      "role": "statement",
+      "blocks": [
+        {
+          "block_id": "stmt-1",
+          "page": 1,
+          "text": "Owner John A. Smith account 78451239 registration John A. Smith Traditional IRA statement date September 15, 2026"
+        }
+      ],
+      "claims": [
+        {"field": "source_account_number", "value": "78451239", "page": 1, "source_block_ids": ["stmt-1"]},
+        {"field": "owner_name", "value": "John A. Smith", "page": 1, "source_block_ids": ["stmt-1"]},
+        {"field": "account_registration", "value": "John A. Smith Traditional IRA", "page": 1, "source_block_ids": ["stmt-1"]},
+        {"field": "statement_date", "value": "September 15, 2026", "page": 1, "source_block_ids": ["stmt-1"]}
+      ],
+      "signatures": []
+    },
+    {
+      "role": "receiving_account_record",
+      "blocks": [
+        {
+          "block_id": "recv-1",
+          "page": 1,
+          "text": "Owner John Andrew Smith LPL account 55678901 registration John Andrew Smith Traditional IRA"
+        }
+      ],
+      "claims": [
+        {"field": "owner_name", "value": "John Andrew Smith", "page": 1, "source_block_ids": ["recv-1"]},
+        {"field": "receiving_account_number", "value": "55678901", "page": 1, "source_block_ids": ["recv-1"]},
+        {"field": "account_registration", "value": "John Andrew Smith Traditional IRA", "page": 1, "source_block_ids": ["recv-1"]}
+      ],
+      "signatures": []
+    },
+    {
+      "role": "client_authorization",
+      "blocks": [
+        {
+          "block_id": "auth-1",
+          "page": 1,
+          "text": "Client John Andrew Smith authorization date September 22, 2026 source account 78451239 LPL account 55678901 [X] Full transfer Liquidate all holdings and transfer cash date signed September 22, 2026"
+        }
+      ],
+      "claims": [
+        {"field": "owner_name", "value": "John Andrew Smith", "page": 1, "source_block_ids": ["auth-1"]},
+        {"field": "source_account_number", "value": "78451239", "page": 1, "source_block_ids": ["auth-1"]},
+        {"field": "receiving_account_number", "value": "55678901", "page": 1, "source_block_ids": ["auth-1"]},
+        {"field": "authorization_date", "value": "September 22, 2026", "page": 1, "source_block_ids": ["auth-1"]},
+        {"field": "date_signed", "value": "September 22, 2026", "page": 1, "source_block_ids": ["auth-1"]},
+        {"field": "full_transfer", "value": "true", "page": 1, "source_block_ids": ["auth-1"]},
+        {"field": "cash_transfer", "value": "true", "page": 1, "source_block_ids": ["auth-1"]}
+      ],
+      "signatures": [{"page": 2, "state": "signature mark detected", "block_id": "auth-sig"}]
+    },
+    {
+      "role": "northstar_transfer_form",
+      "blocks": [
+        {
+          "block_id": "form-1",
+          "page": 1,
+          "text": "Name John Andrew Smith source account 78451239 receiving account 55678901 registration John Andrew Smith Traditional IRA [X] Full transfer Transfer all available cash after liquidation"
+        }
+      ],
+      "claims": [
+        {"field": "owner_name", "value": "John Andrew Smith", "page": 1, "source_block_ids": ["form-1"]},
+        {"field": "source_account_number", "value": "78451239", "page": 1, "source_block_ids": ["form-1"]},
+        {"field": "receiving_account_number", "value": "55678901", "page": 1, "source_block_ids": ["form-1"]},
+        {"field": "account_registration", "value": "John Andrew Smith Traditional IRA", "page": 1, "source_block_ids": ["form-1"]},
+        {"field": "full_transfer", "value": "true", "page": 1, "source_block_ids": ["form-1"]},
+        {"field": "cash_transfer", "value": "true", "page": 1, "source_block_ids": ["form-1"]}
+      ],
+      "signatures": [{"page": 3, "state": "signature mark detected", "block_id": "form-sig"}]
+    }
+  ]
+}
