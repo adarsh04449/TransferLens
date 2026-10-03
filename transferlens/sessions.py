@@ -48,6 +48,10 @@ class ReviewSession:
     def events(self) -> tuple[SessionEvent, ...]:
         return tuple(self._events)
 
+    @property
+    def state(self) -> str:
+        return self._review_state
+
     def work_seconds(self) -> int:
         return self._work_seconds
 

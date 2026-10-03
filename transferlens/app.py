@@ -16,7 +16,7 @@ from transferlens.extract.textract import ExtractionError
 from transferlens.policy import load_policy
 from transferlens.review import ReviewError, decide_export, evaluate, findings_for_run, override_finding, supersede
 from transferlens.scoring.baseline import BaselineError, load_manual_baseline
-from transferlens.scoring.metrics import compare_packet
+from transferlens.scoring.metrics import compare_packet, completed_assisted_session
 from transferlens.sessions import ReviewSession, SessionError
 from transferlens.ui.packets import UploadError, accept_pdf, load_demo_packet
 from transferlens.ui.preview import illustrative_results
@@ -75,6 +75,8 @@ def _ensure_state() -> None:
     st.session_state.setdefault("run_id", "run-1")
     st.session_state.setdefault("layout", "waiting")
     st.session_state.setdefault("run_serial", 1)
+    st.session_state.setdefault("assisted", ())
+    st.session_state.setdefault("edits", 0)
 
 
 def _sidebar(runtime: str) -> None:
@@ -245,30 +247,57 @@ def _extract_banner(runtime: str) -> str:
 
 def _timer() -> None:
     clock = st.session_state.clock
+    state = "idle" if clock is None else clock.state
     work = "Not started" if clock is None else _format_seconds(clock.work_seconds())
     c1, c2, c3, c4, c5 = st.columns([1.4, 1, 1, 1, 1])
     c1.metric("Work time", work)
-    if c2.button("Start"):
+    c1.caption({"idle": "Not started", "running": "Running", "paused": "Paused", "finished": "Finished"}[state])
+    if c2.button("Start", disabled=state in {"running", "paused"}):
         _clock("review_started")
-    if c3.button("Pause"):
+    if c3.button("Pause", disabled=state != "running"):
         _clock("review_paused")
-    if c4.button("Resume"):
+    if c4.button("Resume", disabled=state != "paused"):
         _clock("review_resumed")
-    if c5.button("Finish"):
+    if c5.button("Finish", disabled=state not in {"running", "paused"}):
         _clock("review_finished")
 
 
 def _clock(event_type: str) -> None:
     clock = st.session_state.clock
+    if event_type == "review_started" and clock is not None and clock.state == "finished":
+        clock = None
     if clock is None:
         clock = ReviewSession(replay=False)
         st.session_state.clock = clock
+    if event_type == "review_started" and clock.state != "idle":
+        return
     try:
         clock.record(uuid4().hex, event_type, datetime.now(timezone.utc))
     except SessionError as exc:
         st.warning(str(exc))
         return
+    if event_type == "review_finished":
+        _capture_assisted()
     st.rerun()
+
+
+def _capture_assisted() -> None:
+    clock = st.session_state.clock
+    findings = st.session_state.findings
+    defects = sum(1 for item in findings if item.result.status == "fail" and item.disposition != "superseded")
+    ready = bool(findings) and decide_export(findings, st.session_state.run_id).allowed
+    session = completed_assisted_session(
+        st.session_state.case_id,
+        st.session_state.layout,
+        finished=clock is not None and clock.elapsed_seconds() is not None,
+        work_seconds=0 if clock is None else clock.work_seconds(),
+        fields_edited=st.session_state.edits,
+        defects_found=defects,
+        marked_ready=ready,
+        ai_processing_seconds=0 if clock is None else clock.ai_processing_seconds(),
+    )
+    if session is not None:
+        st.session_state.assisted = (*st.session_state.assisted, session)
 
 
 def _viewer() -> None:
@@ -395,6 +424,7 @@ def _outcome() -> None:
                 st.session_state.findings = tuple(
                     updated if item.finding_id == updated.finding_id else item for item in findings
                 )
+                st.session_state.edits += 1
                 st.rerun()
     st.subheader("Corrected document")
     st.caption("A correction is a new upload. It starts another run, and earlier approvals do not carry forward.")
@@ -407,6 +437,7 @@ def _outcome() -> None:
             st.error(str(exc))
         else:
             st.session_state.documents[role] = document
+            st.session_state.edits += 1
             st.session_state.findings = supersede(st.session_state.findings)
             st.session_state.run_serial += 1
             st.session_state.run_id = f"run-{st.session_state.run_serial}"
@@ -417,17 +448,20 @@ def _outcome() -> None:
 def _metrics() -> None:
     st.title("Time and accuracy")
     st.markdown(
-        '<p class="lede">Manual time comes from the stopwatch CSV. Assisted time comes from a finished live review. Replay and the illustrative layout are excluded.</p>',
+        '<p class="lede">Manual time comes from the stopwatch CSV. Assisted time comes from a finished review. Replay and the illustrative layout are excluded.</p>',
         unsafe_allow_html=True,
     )
     uploaded = st.file_uploader("Manual baseline CSV", type=["csv"])
-    manual_value, manual_note = _manual_tile(uploaded)
+    packet_id = st.session_state.case_id or "TR-2026-001"
+    manual_rows, manual_note = _manual_rows(uploaded)
+    assisted = tuple(row for row in st.session_state.assisted if row.packet_id == packet_id)
+    snapshot = compare_packet(packet_id, manual_rows, assisted)
     tiles = (
-        ("Manual review", manual_value, manual_note),
-        ("Assisted review", "Not measured", "No live extraction session"),
-        ("Manual work reduced", "Not measured", "Needs assisted time as well"),
-        ("Defects found", "Not measured", "Scored after a live review"),
-        ("Packet readiness", "Not measured", "Ready decision against the case"),
+        ("Manual review", _time_tile(snapshot.manual_work_seconds), manual_note),
+        ("Assisted review", _time_tile(snapshot.assisted_work_seconds), _assisted_note(snapshot.sample_assisted)),
+        ("Manual work reduced", _percent_tile(snapshot.reduction_pct), "Needs a positive manual baseline and a finished review"),
+        ("Defects found", _count_tile(snapshot.defects_found), "Failing checks in finished reviews. This packet has no planted defects."),
+        ("Packet readiness", _readiness_tile(assisted), "Export decision from the finished review"),
     )
     columns = st.columns(len(tiles))
     for column, (label, value, note) in zip(columns, tiles, strict=True):
@@ -441,9 +475,9 @@ def _metrics() -> None:
     st.caption("A screen example is 12 minutes, 4 minutes, 67 percent, and 3 of 3. Those figures are the layout, not a result.")
 
 
-def _manual_tile(uploaded) -> tuple[str, str]:
+def _manual_rows(uploaded) -> tuple[list, str]:
     if uploaded is None:
-        return "Not measured", "No completed baseline row"
+        return [], "No completed baseline row"
     schema = ROOT / "benchmark" / "manual_baseline_schema.json"
     target = ROOT / ".local-data" / "baseline-upload.csv"
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -451,13 +485,43 @@ def _manual_tile(uploaded) -> tuple[str, str]:
     try:
         rows = load_manual_baseline(target, schema)
     except BaselineError as exc:
-        return "Not measured", str(exc)
-    packet_id = st.session_state.case_id or "TR-2026-001"
-    snapshot = compare_packet(packet_id, rows, [])
-    if snapshot.manual_work_seconds is None:
-        return "Not measured", "No positive manual baseline for this packet"
-    label = "session" if snapshot.sample_manual == 1 else "sessions"
-    return _format_seconds(int(snapshot.manual_work_seconds)), f"{snapshot.sample_manual} completed {label}"
+        return [], str(exc)
+    completed = [row for row in rows if row.review_completed]
+    if not completed:
+        return rows, "No completed baseline row"
+    label = "session" if len(completed) == 1 else "sessions"
+    return rows, f"{len(completed)} completed {label}"
+
+
+def _time_tile(seconds: float | None) -> str:
+    if seconds is None:
+        return "Not measured"
+    return _format_seconds(int(seconds))
+
+
+def _percent_tile(value: float | None) -> str:
+    if value is None:
+        return "Not measured"
+    return f"{round(value)}%"
+
+
+def _count_tile(value: int | None) -> str:
+    if value is None:
+        return "Not measured"
+    return str(value)
+
+
+def _assisted_note(sample: int) -> str:
+    if sample == 0:
+        return "Finish a review. Replay and the illustrative layout are excluded."
+    label = "review" if sample == 1 else "reviews"
+    return f"{sample} finished {label}"
+
+
+def _readiness_tile(assisted) -> str:
+    if not assisted:
+        return "Not measured"
+    return "Export allowed" if assisted[-1].marked_ready else "Export blocked"
 
 
 def _humanize(text: str) -> str:

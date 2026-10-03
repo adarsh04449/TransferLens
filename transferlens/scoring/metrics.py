@@ -49,6 +49,31 @@ class MetricsSnapshot:
     time_measured: bool
 
 
+def completed_assisted_session(
+    packet_id: str,
+    layout: str,
+    finished: bool,
+    work_seconds: int,
+    fields_edited: int,
+    defects_found: int,
+    marked_ready: bool,
+    ai_processing_seconds: int = 0,
+) -> AssistedSession | None:
+    """Return a metrics row for a finished review. Replay and the illustrative layout stay out."""
+
+    if not finished or not packet_id or layout in {"replay", "illustrative"}:
+        return None
+    return AssistedSession(
+        packet_id=packet_id,
+        work_seconds=work_seconds,
+        fields_edited=fields_edited,
+        defects_found=defects_found,
+        marked_ready=marked_ready,
+        replay=False,
+        ai_processing_seconds=ai_processing_seconds,
+    )
+
+
 def reduction_pct(manual_work_seconds: float, assisted_work_seconds: float) -> float | None:
     if manual_work_seconds <= 0:
         return None

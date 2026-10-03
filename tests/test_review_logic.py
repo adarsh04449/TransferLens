@@ -19,6 +19,7 @@ from transferlens.scoring.metrics import (
     AssistedSession,
     PacketExpectation,
     compare_packet,
+    completed_assisted_session,
     reduction_pct,
 )
 from transferlens.sessions import ReviewSession, SessionError
@@ -345,6 +346,7 @@ def test_work_time_excludes_pauses_and_ai_processing() -> None:
     session.record("e4", "review_paused", start + timedelta(minutes=10))
     session.record("e5", "review_resumed", start + timedelta(minutes=15))
     session.record("e6", "review_finished", start + timedelta(minutes=25))
+    assert session.state == "finished"
     assert session.work_seconds() == 20 * 60
     assert session.ai_processing_seconds() == 3 * 60
     assert session.elapsed_seconds() == 25 * 60
@@ -358,6 +360,19 @@ def test_work_time_excludes_pauses_and_ai_processing() -> None:
     ]
     with pytest.raises(SessionError, match="Duplicate"):
         session.record("e4", "review_paused", start + timedelta(minutes=30))
+
+
+def test_finished_review_reaches_metrics_and_skips_the_illustrative_layout() -> None:
+    recorded = completed_assisted_session("TR-2026-001", "waiting", True, 240, 1, 2, False, ai_processing_seconds=30)
+    assert recorded is not None
+    assert recorded.work_seconds == 240
+    assert recorded.ai_processing_seconds == 30
+    assert completed_assisted_session("TR-2026-001", "illustrative", True, 240, 0, 0, False) is None
+    assert completed_assisted_session("TR-2026-001", "replay", True, 240, 0, 0, False) is None
+    assert completed_assisted_session("TR-2026-001", "live", False, 240, 0, 0, False) is None
+    snapshot = compare_packet("TR-2026-001", [], [recorded])
+    assert snapshot.assisted_work_seconds == 240
+    assert snapshot.time_measured is False
 
 
 def test_empty_baseline_is_not_measured() -> None:

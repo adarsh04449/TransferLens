@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -245,7 +246,12 @@ def live_document(
 
     token = _TOKEN.sub("-", f"{document_id}-{key}")[:64]
     job_id = start_analysis(textract, bucket, key, token)
-    raw_blocks, partial = wait_for_analysis(textract, job_id, sleep=sleep)
+    raw_blocks, partial = wait_for_analysis(
+        textract,
+        job_id,
+        sleep=time.sleep if sleep is None else sleep,
+        attempts=180,
+    )
     blocks = line_blocks(raw_blocks, document_id)
     claims = extract_fields(bedrock, model_id, role, document_id, blocks)
     mark = next((block for block in raw_blocks if block.get("BlockType") == "SIGNATURE" and block.get("Id")), None)
