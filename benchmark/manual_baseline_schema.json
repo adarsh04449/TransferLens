@@ -1,0 +1,71 @@
+{
+  "template": "benchmark/manual_baseline_template.csv",
+  "purpose": "Empty sheet for a stopwatch timing of the same PDFs. It is not a measured result.",
+  "instructions": [
+    "Review the packet PDFs with a stopwatch. Pause the watch when work stops.",
+    "Record work_seconds as the stopped time, with pauses left out.",
+    "Write findings as what the reviewer actually recorded, separated by semicolons.",
+    "Leave the sheet empty until a review happens. Do not copy the answer key into it.",
+    "Screen examples such as a minute count, a reduction percentage, or a defect fraction are layout only."
+  ],
+  "columns": [
+    {
+      "name": "reviewer_id",
+      "type": "string",
+      "required": true,
+      "description": "Reviewer identifier for this manual session."
+    },
+    {
+      "name": "packet_id",
+      "type": "string",
+      "required": true,
+      "description": "Packet that was reviewed, such as TR-2026-001."
+    },
+    {
+      "name": "mode",
+      "type": "string",
+      "required": true,
+      "allowed": ["manual"],
+      "description": "This template records manual review only."
+    },
+    {
+      "name": "work_seconds",
+      "type": "integer",
+      "required": true,
+      "minimum": 0,
+      "description": "Stopwatch seconds of work, excluding pauses."
+    },
+    {
+      "name": "fields_edited",
+      "type": "integer",
+      "required": true,
+      "minimum": 0,
+      "description": "Fields the reviewer changed or wrote during the session."
+    },
+    {
+      "name": "defects_found",
+      "type": "integer",
+      "required": true,
+      "minimum": 0,
+      "description": "Count of defects the reviewer recorded. Scoring against the answer key happens later."
+    },
+    {
+      "name": "findings",
+      "type": "string",
+      "required": false,
+      "description": "Defects the reviewer recorded, separated by semicolons."
+    },
+    {
+      "name": "marked_ready",
+      "type": "boolean",
+      "required": true,
+      "description": "Whether the reviewer would export the packet."
+    },
+    {
+      "name": "review_completed",
+      "type": "boolean",
+      "required": true,
+      "description": "Whether the reviewer finished the session."
+    }
+  ]
+}

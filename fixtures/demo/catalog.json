@@ -1,0 +1,45 @@
+{
+  "packets": [
+    {
+      "packet_id": "TR-2026-001",
+      "label": "clean",
+      "reference_date": "2026-09-01",
+      "documents": [
+        {
+          "role": "statement",
+          "filename": "statement.pdf",
+          "source_filename": "NorthStar_Traditional_IRA_Statement.pdf",
+          "pages": 4,
+          "sha256": "8a8ce3dfb7c4727b4a747c538d49cc8feff1cffb1b797ad169242ca9e36fc8e3"
+        },
+        {
+          "role": "receiving_account_record",
+          "filename": "receiving_account_record.pdf",
+          "source_filename": "Simulated_LPL_Receiving_Account_Record.pdf",
+          "pages": 2,
+          "sha256": "272633e96b01d2989cfb96a49658035a8bbb3ef1f2cc939677e15080ac58a353"
+        },
+        {
+          "role": "client_authorization",
+          "filename": "client_authorization.pdf",
+          "source_filename": "Client_Transfer_Authorization.pdf",
+          "pages": 2,
+          "sha256": "d4a92d487ff7b7e6b85f9e17bd64ba829cc2879ccd69e6b8261cae459d1f64b6"
+        },
+        {
+          "role": "northstar_transfer_form",
+          "filename": "northstar_transfer_form.pdf",
+          "source_filename": "NorthStar_Non_ACAT_Transfer_Form.pdf",
+          "pages": 3,
+          "sha256": "2949683ce63b03ad8613b38e792291c06fdf18b24908c9bb4af76eaa286a6552"
+        }
+      ]
+    }
+  ],
+  "not_supplied": [
+    {
+      "label": "defective",
+      "reason": "No defective PDFs were supplied. This catalog does not invent a second packet."
+    }
+  ]
+}

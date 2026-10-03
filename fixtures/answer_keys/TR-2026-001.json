@@ -1,0 +1,96 @@
+{
+  "packet_id": "TR-2026-001",
+  "label": "clean",
+  "use": "tests_and_benchmark_scoring_only",
+  "policy_id": "northstar-traditional-ira-demo",
+  "policy_version": "2026.09.01",
+  "demo_reference_date": "2026-09-01",
+  "documents": {
+    "statement": {
+      "sha256": "8a8ce3dfb7c4727b4a747c538d49cc8feff1cffb1b797ad169242ca9e36fc8e3",
+      "pages": 4,
+      "fields": {
+        "sending_institution": "NorthStar Trust",
+        "owner_name": "John A. Smith",
+        "source_account_number": "78451239",
+        "account_type": "Traditional IRA",
+        "statement_date": "2026-09-15",
+        "statement_period_start": "2026-08-16",
+        "statement_period_end": "2026-09-15",
+        "account_registration": "John A. Smith Traditional IRA",
+        "ending_account_value": "52400.00"
+      }
+    },
+    "receiving_account_record": {
+      "sha256": "272633e96b01d2989cfb96a49658035a8bbb3ef1f2cc939677e15080ac58a353",
+      "pages": 2,
+      "fields": {
+        "owner_name": "John Andrew Smith",
+        "receiving_account_number": "55678901",
+        "account_type": "Traditional IRA",
+        "account_registration": "John Andrew Smith Traditional IRA",
+        "account_status": "Open - eligible to receive assets",
+        "receiving_institution": "LPL Financial LLC",
+        "simulated_record": true
+      }
+    },
+    "client_authorization": {
+      "sha256": "d4a92d487ff7b7e6b85f9e17bd64ba829cc2879ccd69e6b8261cae459d1f64b6",
+      "pages": 2,
+      "fields": {
+        "owner_name": "John Andrew Smith",
+        "authorization_date": "2026-09-22",
+        "source_account_number": "78451239",
+        "receiving_account_number": "55678901",
+        "account_type": "Traditional IRA",
+        "full_transfer": true,
+        "cash_transfer": true,
+        "date_signed": "2026-09-22",
+        "signature_present": true,
+        "printed_name": "John Andrew Smith"
+      }
+    },
+    "northstar_transfer_form": {
+      "sha256": "2949683ce63b03ad8613b38e792291c06fdf18b24908c9bb4af76eaa286a6552",
+      "pages": 3,
+      "fields": {
+        "owner_name": "John Andrew Smith",
+        "source_account_number": "78451239",
+        "receiving_account_number": "55678901",
+        "account_type": "Traditional IRA",
+        "account_registration": "John Andrew Smith Traditional IRA",
+        "full_transfer": true,
+        "cash_transfer": true,
+        "date_signed": "2026-09-22",
+        "signature_present": true,
+        "printed_name": "John Andrew Smith",
+        "statement_date_cited": "2026-09-15"
+      }
+    }
+  },
+  "masked_values_must_stay_unknown": [
+    {
+      "document": "receiving_account_record",
+      "field": "tax_id",
+      "visible_text": "Masked - ending 1842"
+    },
+    {
+      "document": "northstar_transfer_form",
+      "field": "tax_id",
+      "visible_text": "Masked - ending 1842"
+    }
+  ],
+  "planted_defects": [],
+  "expected": {
+    "source_account_numbers_agree": true,
+    "receiving_account_numbers_agree": true,
+    "owner_name_comparison": "needs_confirmation",
+    "owner_name_note": "The statement uses John A. Smith. The other three documents use John Andrew Smith.",
+    "statement_date": "2026-09-15",
+    "statement_is_after_reference_date": true,
+    "signatures_present_on_required_documents": true,
+    "authorization_is_full_cash_transfer": true,
+    "packet_ready": false,
+    "packet_ready_reason": "The statement date is after the demo reference date, so this packet is not ready under the 2026-09-01 age check. It does not contain a wrong account number, a missing signature, or a stale statement."
+  }
+}
