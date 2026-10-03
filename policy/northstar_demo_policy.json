@@ -1,0 +1,87 @@
+{
+  "policy_id": "northstar-traditional-ira-demo",
+  "version": "2026.09.01",
+  "title": "NorthStar Trust demo policy for a full cash transfer",
+  "disclaimer": "Fictional hackathon demo policy for a proposed workflow. These are not verified LPL processing rules, and this system has no LPL integration.",
+  "sending_institution": "NorthStar Trust",
+  "receiving_institution_label": "LPL",
+  "account_type": "Traditional IRA",
+  "transfer": {
+    "scope": "full",
+    "cash_only": true,
+    "receiving_account_already_open": true
+  },
+  "statement_max_age_days": 90,
+  "demo_reference_date": "2026-09-01",
+  "required_document_roles": [
+    "statement",
+    "receiving_account_record",
+    "client_authorization",
+    "northstar_transfer_form"
+  ],
+  "signature_documents": [
+    "client_authorization",
+    "northstar_transfer_form"
+  ],
+  "name_comparison": {
+    "normalize": ["case", "whitespace"],
+    "exact_match_after_normalization": "pass",
+    "compatible_variation": "needs_confirmation",
+    "different_identity": "fail",
+    "note": "A middle initial, suffix, or punctuation difference needs reviewer confirmation. It does not prove that two names are the same person."
+  },
+  "account_number_comparison": {
+    "match": "exact_after_permitted_normalization",
+    "permitted_normalization": ["strip_spaces", "strip_hyphens"],
+    "masked_or_incomplete": "unknown",
+    "never_infer_digits": true
+  },
+  "rule_groups": [
+    {
+      "id": "documents.required_roles",
+      "title": "Required document roles are present",
+      "subchecks": [
+        {"id": "documents.statement_present", "role": "statement"},
+        {"id": "documents.receiving_record_present", "role": "receiving_account_record"},
+        {"id": "documents.authorization_present", "role": "client_authorization"},
+        {"id": "documents.transfer_form_present", "role": "northstar_transfer_form"}
+      ]
+    },
+    {
+      "id": "accounts.source_agreement",
+      "title": "Source account numbers agree",
+      "roles": ["statement", "client_authorization", "northstar_transfer_form"],
+      "field": "source_account_number"
+    },
+    {
+      "id": "accounts.receiving_agreement",
+      "title": "Receiving account numbers agree",
+      "roles": ["receiving_account_record", "client_authorization", "northstar_transfer_form"],
+      "field": "receiving_account_number"
+    },
+    {
+      "id": "registration.owner_agreement",
+      "title": "Owner and registration agree",
+      "fields": ["owner_name", "account_registration"],
+      "comparison": "name_comparison"
+    },
+    {
+      "id": "statement.age_window",
+      "title": "Statement date is usable",
+      "subchecks": [
+        {"id": "statement.not_in_future"},
+        {"id": "statement.within_max_age", "max_age_days": 90}
+      ]
+    },
+    {
+      "id": "authorization.completeness",
+      "title": "Authorization is complete",
+      "subchecks": [
+        {"id": "authorization.full_transfer"},
+        {"id": "authorization.cash_instruction"},
+        {"id": "authorization.required_dates"},
+        {"id": "authorization.signature_fields"}
+      ]
+    }
+  ]
+}
