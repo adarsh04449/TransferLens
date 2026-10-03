@@ -144,7 +144,6 @@ def _user_data(bucket_name: str, table_name: str, log_group_name: str) -> ec2.Us
         "TRANSFERLENS_RUNTIME=aws",
         "AWS_REGION=us-east-1",
         "AWS_DEFAULT_REGION=us-east-1",
-        "AWS_PROFILE=",
         "BEDROCK_MODEL_ID=us.amazon.nova-pro-v1:0",
         f"TRANSFERLENS_BUCKET={bucket_name}",
         f"TRANSFERLENS_TABLE={table_name}",

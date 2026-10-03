@@ -21,7 +21,7 @@ flowchart LR
   ui --> store
 ```
 
-Local and replay runtimes keep JSON and uploaded bytes under `.local-data/`. Replay reads `fixtures/replay/` and does not call Textract or Bedrock. The `aws` runtime requires `TRANSFERLENS_BUCKET` and `TRANSFERLENS_TABLE`. On the instance, the AWS SDK uses the instance role. `AWS_PROFILE` is empty there.
+Local and replay runtimes keep JSON and uploaded bytes under `.local-data/`. Replay reads `fixtures/replay/` and does not call Textract or Bedrock. The `aws` runtime requires `TRANSFERLENS_BUCKET` and `TRANSFERLENS_TABLE`. On the instance, the AWS SDK uses the instance role. `AWS_PROFILE` is omitted there.
 
 Object keys are `cases/{case_id}/documents/{document_id}/{hash}.pdf`, `cases/{case_id}/runs/{run_id}/`, and `cases/{case_id}/packets/`. DynamoDB uses partition key `pk` and sort key `sk`, plus a `status-index` global secondary index. Full OCR JSON and PDFs stay in S3. Items point at those objects.
 

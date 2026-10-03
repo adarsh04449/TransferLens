@@ -1,4 +1,5 @@
 import hashlib
+import os
 from datetime import date
 from pathlib import Path
 
@@ -6,7 +7,7 @@ import pytest
 
 from transferlens.config import load_settings
 from transferlens.extract.bedrock import extract_fields
-from transferlens.extract.pipeline import ExtractionUnavailable, LiveClients, run_extraction
+from transferlens.extract.pipeline import ExtractionUnavailable, LiveClients, open_live_clients, run_extraction
 from transferlens.extract.textract import ExtractionError, signature_state, wait_for_analysis
 from transferlens.policy import load_policy
 from transferlens.review import evaluate
@@ -24,6 +25,39 @@ def _settings(**overrides: str):
 def test_local_mode_does_not_call_extraction() -> None:
     with pytest.raises(ExtractionUnavailable, match="local mode"):
         run_extraction(_settings(), "TR-2026-001", {"statement": {}})
+
+
+def test_blank_profile_is_not_sent_to_boto3(monkeypatch) -> None:
+    monkeypatch.setenv("AWS_PROFILE", "")
+    seen: dict = {}
+
+    class FakeSession:
+        def __init__(self, **kwargs):
+            seen["kwargs"] = kwargs
+            seen["profile"] = os.environ.get("AWS_PROFILE")
+
+        def client(self, _name):
+            return object()
+
+        def resource(self, _name):
+            class Tables:
+                def Table(self, _table):
+                    return object()
+
+            return Tables()
+
+    import boto3
+
+    monkeypatch.setattr(boto3, "Session", FakeSession)
+    settings = _settings(
+        TRANSFERLENS_RUNTIME="aws",
+        TRANSFERLENS_BUCKET="b",
+        TRANSFERLENS_TABLE="t",
+        AWS_PROFILE="",
+    )
+    open_live_clients(settings)
+    assert "profile_name" not in seen["kwargs"]
+    assert seen["profile"] is None
 
 
 def test_default_profile_is_refused() -> None:

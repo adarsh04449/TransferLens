@@ -114,6 +114,7 @@ def test_template_is_private_and_retained():
     assert "ASIA" not in script
     assert "AWS_SECRET_ACCESS_KEY" not in script
     assert "AWS_SESSION_TOKEN" not in script
+    assert "AWS_PROFILE=" not in script
 
     statements = []
     for item in resources.values():

@@ -118,7 +118,7 @@ aws s3 cp s3://BUCKET/bootstrap/transferlens-local.tar.gz - | gunzip | docker lo
 docker ps
 ```
 
-`/opt/transferlens/env` already names the bucket, table, and log group. `AWS_PROFILE` is empty so the container uses the instance role. The process listens on `127.0.0.1:8501` inside the instance.
+`/opt/transferlens/env` already names the bucket, table, and log group. `AWS_PROFILE` is omitted so the container uses the instance role. The process listens on `127.0.0.1:8501` inside the instance.
 
 Forward that port to the laptop:
 

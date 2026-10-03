@@ -106,12 +106,9 @@ def _project_root(settings: Settings) -> Path:
 def open_live_clients(settings: Settings) -> LiveClients:
     """Build AWS clients from the credential chain. Callers pass fakes in tests."""
 
-    import boto3
+    from transferlens.storage import aws_session
 
-    session_kwargs = {"region_name": settings.region}
-    if settings.aws_profile:
-        session_kwargs["profile_name"] = settings.aws_profile
-    session = boto3.Session(**session_kwargs)
+    session = aws_session(settings)
     return LiveClients(
         sts=session.client("sts"),
         objects=S3ObjectStore(settings.bucket, session.client("s3")),
