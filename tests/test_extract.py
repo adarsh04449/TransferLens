@@ -1,3 +1,4 @@
+import hashlib
 from datetime import date
 from pathlib import Path
 
@@ -5,7 +6,7 @@ import pytest
 
 from transferlens.config import load_settings
 from transferlens.extract.bedrock import extract_fields
-from transferlens.extract.pipeline import ExtractionUnavailable, run_extraction
+from transferlens.extract.pipeline import ExtractionUnavailable, LiveClients, run_extraction
 from transferlens.extract.textract import ExtractionError, signature_state, wait_for_analysis
 from transferlens.policy import load_policy
 from transferlens.review import evaluate
@@ -26,9 +27,47 @@ def test_local_mode_does_not_call_extraction() -> None:
 
 
 def test_default_profile_is_refused() -> None:
-    settings = _settings(TRANSFERLENS_RUNTIME="aws", TRANSFERLENS_BUCKET="b", TRANSFERLENS_TABLE="t")
-    with pytest.raises(ExtractionUnavailable, match="workshop profile"):
-        run_extraction(settings, "TR-2026-001", {"statement": {}})
+    settings = _settings(
+        TRANSFERLENS_RUNTIME="aws",
+        TRANSFERLENS_BUCKET="b",
+        TRANSFERLENS_TABLE="t",
+        AWS_PROFILE="default",
+    )
+    with pytest.raises(ExtractionUnavailable, match="personal default profile"):
+        run_extraction(settings, "TR-2026-001", {"statement": {"data": b"%PDF-1.4", "sha256": "abc"}})
+
+
+def test_wrong_account_stops_before_upload() -> None:
+    settings = _settings(TRANSFERLENS_RUNTIME="aws", TRANSFERLENS_BUCKET="case-bucket", TRANSFERLENS_TABLE="t", AWS_PROFILE="hackathon")
+    textract = _Textract()
+    clients = _clients("235494815973", textract)
+    with pytest.raises(ExtractionUnavailable, match="does not match"):
+        run_extraction(settings, "TR-2026-001", _pdf_packet(), clients=clients)
+    assert textract.locations == []
+    assert clients.objects.keys == []
+
+
+def test_live_extraction_stores_the_pdf_and_reuses_the_artifact() -> None:
+    settings = _settings(
+        TRANSFERLENS_RUNTIME="aws",
+        TRANSFERLENS_BUCKET="case-bucket",
+        TRANSFERLENS_TABLE="t",
+        AWS_PROFILE="",
+    )
+    textract = _Textract()
+    clients = _clients("884025082158", textract)
+    first = run_extraction(settings, "TR-2026-001", _pdf_packet(), run_id="run-1", clients=clients)
+    assert first.replay is False
+    assert first.claims[0].value == "78451239"
+    assert first.signatures[0].state == "signature mark detected"
+    assert clients.objects.keys[0].startswith("cases/TR-2026-001/documents/statement/")
+    assert "cases/TR-2026-001/runs/run-1/extraction.json" in clients.objects.keys
+    assert clients.metadata.items[("CASE#TR-2026-001", "RUN#run-1")]["status"] == "extracted"
+    assert textract.locations == [{"Bucket": "case-bucket", "Name": clients.objects.keys[0]}]
+
+    second = run_extraction(settings, "TR-2026-001", _pdf_packet(), run_id="run-1", clients=clients)
+    assert second.claims[0].value == "78451239"
+    assert len(textract.locations) == 1
 
 
 def test_replay_output_is_checked_by_the_rules() -> None:
@@ -121,3 +160,92 @@ def test_bedrock_requires_the_tool_result() -> None:
 
     with pytest.raises(ExtractionError, match="record_fields"):
         extract_fields(Empty(), "model", "statement", "statement", (TextBlock("stmt-1", "statement", 1, "78451239"),))
+
+
+def _pdf_packet() -> dict:
+    data = b"%PDF-1.4\n" + (b"0" * 120)
+    return {"statement": {"filename": "statement.pdf", "data": data, "sha256": hashlib.sha256(data).hexdigest()}}
+
+
+def _clients(account: str, textract: "_Textract") -> LiveClients:
+    return LiveClients(_Sts(account), _Objects(), textract, _Bedrock(), _Meta())
+
+
+class _Sts:
+    def __init__(self, account: str) -> None:
+        self._account = account
+
+    def get_caller_identity(self) -> dict:
+        return {"Account": self._account}
+
+
+class _Objects:
+    def __init__(self) -> None:
+        self.store: dict[str, bytes] = {}
+
+    def put_new(self, key: str, data: bytes, content_type: str):
+        self.store[key] = data
+        return key
+
+    def exists(self, key: str) -> bool:
+        return key in self.store
+
+    def get(self, key: str) -> bytes:
+        return self.store[key]
+
+    @property
+    def keys(self) -> list[str]:
+        return list(self.store)
+
+
+class _Meta:
+    def __init__(self) -> None:
+        self.items: dict[tuple[str, str], dict] = {}
+
+    def put_new(self, item: dict):
+        self.items[(item["pk"], item["sk"])] = dict(item)
+
+
+class _Textract:
+    def __init__(self) -> None:
+        self.locations: list[dict] = []
+
+    def start_document_analysis(self, **kwargs):
+        self.locations.append(kwargs["DocumentLocation"]["S3Object"])
+        return {"JobId": "job-1"}
+
+    def get_document_analysis(self, **kwargs):
+        return {
+            "JobStatus": "SUCCEEDED",
+            "Blocks": [
+                {"Id": "line-1", "BlockType": "LINE", "Text": "Account 78451239", "Page": 1},
+                {"Id": "sig-1", "BlockType": "SIGNATURE", "Confidence": 99, "Page": 2},
+            ],
+        }
+
+
+class _Bedrock:
+    def converse(self, **kwargs):
+        return {
+            "output": {
+                "message": {
+                    "content": [
+                        {
+                            "toolUse": {
+                                "name": "record_fields",
+                                "input": {
+                                    "fields": [
+                                        {
+                                            "field": "source_account_number",
+                                            "value": "78451239",
+                                            "page": 1,
+                                            "source_block_ids": ["line-1"],
+                                        }
+                                    ]
+                                },
+                            }
+                        }
+                    ]
+                }
+            }
+        }

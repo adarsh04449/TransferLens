@@ -132,15 +132,15 @@ Open `http://127.0.0.1:8501`. The security group still has no inbound rules.
 
 ## Smoke test
 
-The smoke test is the first live Textract and Bedrock run. It stays unverified until this sequence is approved and the screen is wired to the bucket.
+The smoke test is the first live Textract and Bedrock run. It stays unverified until this sequence is approved.
 
 1. Confirm the caller again with `aws sts get-caller-identity --profile hackathon`.
 2. Open the forwarded app and confirm the runtime is `aws`.
 3. Open demo packet TR-2026-001.
-4. Extract fields. A failed Textract or Bedrock call stays failed.
+4. Extract fields. The screen checks the account, stores the PDFs, runs Textract, then makes one Bedrock call per document. A failed call stays failed.
 5. Confirm the six checks use the returned evidence, then stop the instance if the demo is finished.
 
-The current screen still refuses live extraction until that wiring is turned on. Replay remains the local stand-in and is excluded from assisted time.
+Replay remains the local stand-in and is excluded from assisted time.
 
 ## Expired federation
 

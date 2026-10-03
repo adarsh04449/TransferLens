@@ -12,6 +12,7 @@ import streamlit as st
 
 from transferlens.config import Settings, load_settings
 from transferlens.extract.pipeline import ExtractionUnavailable, run_extraction
+from transferlens.extract.textract import ExtractionError
 from transferlens.policy import load_policy
 from transferlens.review import ReviewError, decide_export, evaluate, findings_for_run, override_finding, supersede
 from transferlens.scoring.baseline import BaselineError, load_manual_baseline
@@ -47,7 +48,19 @@ def _public_env() -> dict[str, str]:
     import os
 
     kept = {}
-    for name in ("TRANSFERLENS_RUNTIME", "TRANSFERLENS_DATA_DIR", "AWS_REGION", "AWS_DEFAULT_REGION"):
+    for name in (
+        "TRANSFERLENS_RUNTIME",
+        "TRANSFERLENS_DATA_DIR",
+        "TRANSFERLENS_BUCKET",
+        "TRANSFERLENS_TABLE",
+        "TRANSFERLENS_LOG_GROUP",
+        "TRANSFERLENS_EXPECTED_ACCOUNT_ID",
+        "TRANSFERLENS_DEMO_REFERENCE_DATE",
+        "BEDROCK_MODEL_ID",
+        "AWS_PROFILE",
+        "AWS_REGION",
+        "AWS_DEFAULT_REGION",
+    ):
         if name in os.environ:
             kept[name] = os.environ[name]
     return kept
@@ -73,7 +86,7 @@ def _sidebar(runtime: str) -> None:
         )
         choice = st.radio("Workspace", SCREENS, index=SCREENS.index(st.session_state.screen), label_visibility="collapsed")
         st.session_state.screen = choice
-        st.markdown(f'<p class="fine">Runtime: {html.escape(runtime)}. Textract and Bedrock are not connected on this screen yet.</p>', unsafe_allow_html=True)
+        st.markdown(f'<p class="fine">{html.escape(_runtime_note(runtime))}</p>', unsafe_allow_html=True)
         st.markdown(
             '<p class="fine">Demo policy only. These are not verified LPL processing rules.</p>',
             unsafe_allow_html=True,
@@ -177,10 +190,7 @@ def _review(policy: dict, reference_date, settings: Settings) -> None:
             unsafe_allow_html=True,
         )
     elif st.session_state.layout != "live":
-        st.markdown(
-            '<div class="banner quiet">Textract reads the pages. Bedrock returns fields tied to those text blocks. This local session does not call either service.</div>',
-            unsafe_allow_html=True,
-        )
+        st.markdown(f'<div class="banner quiet">{html.escape(_extract_banner(settings.runtime))}</div>', unsafe_allow_html=True)
         if st.button("Extract fields"):
             _extract(settings, policy, reference_date)
     document, findings = st.columns([1.15, 0.85], gap="large")
@@ -197,8 +207,13 @@ def _review(policy: dict, reference_date, settings: Settings) -> None:
 
 def _extract(settings: Settings, policy: dict, reference_date) -> None:
     try:
-        extracted = run_extraction(settings, st.session_state.case_id, st.session_state.documents)
-    except ExtractionUnavailable as exc:
+        extracted = run_extraction(
+            settings,
+            st.session_state.case_id,
+            st.session_state.documents,
+            st.session_state.run_id,
+        )
+    except (ExtractionUnavailable, ExtractionError) as exc:
         st.warning(str(exc))
         return
     results = evaluate(
@@ -212,6 +227,20 @@ def _extract(settings: Settings, policy: dict, reference_date) -> None:
     st.session_state.findings = findings_for_run(st.session_state.run_id, results)
     st.session_state.layout = "replay" if settings.replay else "live"
     st.rerun()
+
+
+def _runtime_note(runtime: str) -> str:
+    if runtime == "aws":
+        return "Runtime: aws. Extract fields uploads this packet, then calls Textract and Bedrock."
+    if runtime == "replay":
+        return "Runtime: replay. Extract fields reads saved Textract and Bedrock output."
+    return "Runtime: local. Textract and Bedrock are not called."
+
+
+def _extract_banner(runtime: str) -> str:
+    if runtime == "aws":
+        return "Extract fields stores the PDFs, reads them with Textract, and asks Bedrock for cited fields. The caller account is checked first."
+    return "Textract reads the pages. Bedrock returns fields tied to those text blocks. This local session does not call either service."
 
 
 def _timer() -> None:
