@@ -6,6 +6,8 @@ Supplied demo PDFs for case TR-2026-001 are in `fixtures/demo/clean/`. The answe
 
 The review engine checks cited text, then runs the six policy rules. Export stays blocked while a blocking finding is unresolved, processing has failed, or a critical value is unverified. An override requires a recorded reason. Metrics compare the manual CSV with assisted review time. Replay sessions and AI processing time stay out of that comparison. An empty baseline is not measured.
 
-The review workspace is a Streamlit app: `streamlit run transferlens/app.py`. It opens the demo packet, shows the pages, and can display an illustrative check layout. Local mode does not call Textract or Bedrock. `TRANSFERLENS_RUNTIME=replay` reads `fixtures/replay/` and is excluded from live AI timing. AWS deployment is not connected yet.
+The review workspace is a Streamlit app: `streamlit run transferlens/app.py`. It opens the demo packet, shows the pages, and can display an illustrative check layout. Local mode does not call Textract or Bedrock. `TRANSFERLENS_RUNTIME=replay` reads `fixtures/replay/` and is excluded from live AI timing.
+
+`docker build -t transferlens:local .` builds that same app. `infra/stack.py` is the private `TransferLensStack` for workshop account `884025082158` in `us-east-1`: encrypted documents, a metadata table, one EC2 instance with no inbound rules, and Systems Manager access. Synthesis refuses any other account. Deploy and live extraction stay off until that stack is approved. See `docs/ARCHITECTURE.md`, `docs/AWS_SETUP.md`, and `docs/DEMO_SCRIPT.md`.
 
 Local mode stores JSON metadata and uploaded bytes under `.local-data/`. Set `TRANSFERLENS_RUNTIME=replay` to use a separate saved-output directory. Set `TRANSFERLENS_RUNTIME=aws` only with a bucket name and a table name. The application uses the AWS credential chain, which on EC2 is the instance role. Do not place access keys in this repository.
